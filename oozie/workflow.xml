@@ -1,0 +1,112 @@
+<workflow-app xmlns="uri:oozie:workflow:0.1" name="data_process">
+	<start to='action_process' />
+	<action name="action_process">
+		<map-reduce>
+			<job-tracker>${jobTracker}</job-tracker>
+			<name-node>${nameNode}</name-node>
+			<prepare>
+                <delete path="${output_tmp}/${runDate}"/>
+			</prepare>
+			<configuration>
+				<property>
+					<name>mapred.job.queue.name</name>
+					<value>${queueName}</value>
+				</property>
+				<property>
+					<name>mapred.job.name</name>
+					<value>${wf:name()}</value>
+				</property>
+				<property>
+					<name>mapred.job.reduce.memory.mb</name>
+                    <value>${reduce_mem_buffer}</value>
+				</property>
+				<property>
+					<name>mapred.job.map.memory.mb</name>
+                    <value>${map_mem_buffer}</value>
+				</property>
+				<property>
+					<name>mapred.input.format.class</name>
+					<value>org.apache.hadoop.mapred.TextInputFormat</value>
+				</property>
+				<property>
+					<name>mapred.mapper.class</name>
+					<value>dp.dp_process.DpParallelMapper</value>
+				</property>
+				<property>
+					<name>dp.parser</name>
+					<value>*:dp.dp_process.DpDefaultParser</value>
+				</property>
+				<property>
+					<name>dp.generator.num</name>
+					<value>1</value>
+				</property>
+				<property>
+					<name>statswriter.generator.filepattern.0</name>
+					<value>.*</value>
+				</property>
+				<property>
+					<name>statswriter.generator.class.0</name>
+					<value></value>
+				</property>
+				<property>
+					<name>statswriter.generator.config.0</name>
+					<value>${configdir}/</value>
+				</property>
+				<property>
+					<name>mapred.reducer.class</name>
+					<value>dp.dp_stats.DpStatsBaseReducer</value>
+				</property>
+				<property>
+					<name>mapred.combiner.class</name>
+					<value>dp.dp_stats.DpStatsBaseCombiner</value>
+				</property>
+				<property>
+					<name>mapred.reduce.tasks</name>
+					<value>10</value>
+				</property>
+				<property>
+					<name>mapreduce.job.acl-view-job</name>
+					<value>${acl_view_job}</value>
+				</property>
+				<property>
+					<name>mapreduce.job.acl-modify-job</name>
+					<value>${acl_modify_job}</value>
+				</property>
+
+				<property>
+					<name>mapred.input.dir</name>
+					<value>${input_base}/</value>
+				</property>
+				<property>
+					<name>mapred.output.dir</name>
+					<value>${output_tmp}/${runDate}</value>
+				</property>
+				<property>
+					<name>mapred.output.key.class</name>
+					<value>org.apache.hadoop.io.Text</value>
+				</property>
+				<property>
+					<name>mapred.output.value.class</name>
+					<value>org.apache.hadoop.io.Text</value>
+				</property>
+
+				<property>
+					<name>mapred.output.format.class</name>
+					<value>dp.common.TextMultiFileOutput</value>
+				</property>
+				<property>
+					<name>dfs.umaskmode</name>
+					<value>022</value>
+				</property>
+			</configuration>
+		</map-reduce>
+		<ok to="end"/>
+		<error to="fail"/>
+	</action>
+
+	<kill name="fail">
+		<message>Map/Reduce failed, error message[${wf:errorMessage(wf:lastErrorNode())}]</message>
+	</kill>
+	<end name="end"/>
+</workflow-app>
+

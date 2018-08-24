@@ -1,0 +1,66 @@
+<coordinator-app name="job-coordinator" frequency="${coord:days(1)}" start="${start}" end="${end}" timezone="UTC" xmlns="uri:oozie:coordinator:0.1">
+    <controls>
+        <concurrency>1</concurrency>
+    </controls>
+
+	<datasets>
+		<dataset name="feed_set00" frequency="${coord:hours(1)}" initial-instance="${start}" timezone="UTC">
+			<uri-template>${inputBase}/${YEAR}${MONTH}${DAY}${HOUR}</uri-template>
+			<done-flag></done-flag>
+		</dataset>
+    </datasets>
+
+	<input-events>
+		<data-in name="feed_event00" dataset="feed_set00">
+			<start-instance>${coord:current(-23)}</start-instance>
+			<end-instance>${coord:current(0)}</end-instance>
+		</data-in>
+     </input-events>
+
+    <output-events>
+        <data-out name="output_event" dataset="outputpath">
+            <instance>${coord:current(0)}</instance>
+        </data-out>
+    </output-events>
+
+    <action>
+        <workflow>
+            <app-path>${appDir}</app-path>
+            <configuration>
+                <property>
+                    <name>jobTracker</name>
+                    <value>${jobTracker}</value>
+                </property>
+                <property>
+                    <name>nameNode</name>
+                    <value>${nameNode}</value>
+                </property>
+                <property>
+                    <name>queueName</name>
+                    <value>${queueName}</value>
+                </property>
+	           <property>
+                    <name>input_base</name>
+					<value>${inputBase}</value>
+                </property>
+                <property>
+                    <name>output_tmp</name>
+                    <value>${outputTmp}</value>
+                </property>
+	           <property>
+                    <name>runDate</name>
+					<value>${coord:formatTime( coord:dateOffset(coord:nominalTime(), 0, 'DAY'), 'yyyyMMdd')}</value>
+                </property>
+                <property>
+                    <name>lastDate</name>
+                    <value>${coord:formatTime( coord:dateOffset(coord:nominalTime(), -1, 'DAY'), 'yyyyMMdd')}</value>
+                </property>
+                <property>
+                    <name>jar_path</name>
+                    <value>${jarPath}</value>
+                </property>
+            </configuration>
+        </workflow>
+    </action>
+</coordinator-app>
+

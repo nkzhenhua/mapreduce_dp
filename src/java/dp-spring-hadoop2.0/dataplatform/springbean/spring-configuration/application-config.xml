@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+	http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-4.0.xsd
+	">
+
+	<!-- https://hadoop.apache.org/docs/r2.7.1/hadoop-project-dist/hadoop-common/DeprecatedProperties.html 
+		http://hadoop.apache.org/docs/current/api/constant-values.html -->
+	<!-- MapRed job Properties-->
+	<util:map id="DataplatformKeywordRepoJob">
+		<entry key="use.new.api" value="true" />
+		<entry key="mapred.reducer.new-api" value="true" />
+		<entry key="mapred.mapper.new-api" value="true" />
+        <!-- Should the outputs of the maps be compressed before being sent across the network. Uses SequenceFile compression.-->
+		<entry key="mapreduce.map.output.compress" value="true" />
+		<entry key="mapreduce.map.output.compress.codec" value="org.apache.hadoop.io.compress.GzipCodec"/>
+		
+		<!-- Should the job outputs be compressed? -->
+		<entry key="mapreduce.output.fileoutputformat.compress" value="false" />
+		<entry key="mapreduce.output.compress.codec" value="org.apache.hadoop.io.compress.GzipCodec"/>
+		
+        <entry key="mapreduce.job.inputformat.class"
+			value="org.apache.hadoop.mapreduce.lib.input.TextInputFormat" />
+        <entry key="mapreduce.job.map.class"
+			value="dataplatform.framework.mapred.TextFileMapper" />
+		<entry key="mapreduce.input.fileinputformat.inputdir">
+		<value>${INPUT_DIR}</value>
+		</entry>
+		
+		<!-- use below conf if you need multiple mappers with different input format like mixed: text, sequence input files
+		<entry key="mapreduce.inputformat.class"
+			value="org.apache.hadoop.mapreduce.lib.input.DelegatingInputFormat" />
+		<entry key="mapreduce.job.map.class"
+			value="org.apache.hadoop.mapreduce.lib.input.DelegatingMapper" />
+	    o not format line like this. or else the new line will make error java.lang.ClassNotFoundException: Class org.apache.hadoop.mapreduce.lib.input.TextInputFormat
+		<entry key="mapreduce.input.multipleinputs.dir.formats">
+		       <value></value>
+		</entry>
+		<entry key="mapreduce.input.multipleinputs.dir.mappers">
+		    <value>dir1;dataplatform.framework.mapred.TextFileMapper</value>
+		</entry>
+		-->
+		
+		<entry key="mapreduce.job.partitioner.class" value="dataplatform.framework.mapred.SecondarySortBasicPartitioner"/>
+        <entry key="mapreduce.job.output.key.comparator.class" value="dataplatform.framework.mapred.SecondarySortBasicCompKeySortComparator"/>
+        <entry key="mapreduce.job.output.group.comparator.class" value="dataplatform.framework.mapred.SecondarySortBasicGroupingComparator"/>
+        <entry key="mapreduce.map.output.key.class" value="org.apache.hadoop.io.Text" />
+        <entry key="mapreduce.map.output.value.class" value="org.apache.hadoop.io.Text" />
+        
+        <!-- the number of reducer -->
+		<entry key="mapreduce.job.reduce.class"
+			value="dataplatform.framework.mapred.MultipleOutputReducer" />
+		<entry key="mapreduce.job.reduces" value="${KW_REDUCE_NUM}" />
+
+        <!-- multiple outputs configuration -->
+		<entry key="mapreduce.multipleoutputs" value="kwr" />
+		<!-- org.apache.hadoop.mapreduce.lib.output.MultipleTextOutputFormat  -->
+		<entry key="mapreduce.multipleoutputs.namedOutput.kwr.format"
+			value="org.apache.hadoop.mapreduce.lib.output.TextOutputFormat" />
+		<entry key="mapreduce.multipleoutputs.namedOutput.kwr.key"
+			value="org.apache.hadoop.io.Text" />
+		<entry key="mapreduce.multipleoutputs.namedOutput.kwr.value"
+			value="org.apache.hadoop.io.NullWritable" />
+			
+		<entry key="mapreduce.output.lazyoutputformat.outputformat" value="org.apache.hadoop.mapreduce.lib.output.TextOutputFormat"/>
+
+		<entry key="mapreduce.multipleoutputs.counters" value="true" />
+
+		<entry key="mapreduce.job.output.key.class" value="org.apache.hadoop.io.Text" />
+		<entry key="mapreduce.job.output.value.class" value="org.apache.hadoop.io.NullWritable" />
+		
+		<!--  cach files -->
+		<entry key="mapreduce.job.cache.files" value="s3://s3file.txt#localCache.txt" />
+		
+		<!--  output base directory -->
+		<entry key="mapreduce.output.fileoutputformat.outputdir" value="${KW_OUTPUT}" />
+	</util:map>
+
+	<!--job select: we can configure multiple job properties above and then select the job to run -->
+	
+	<bean id="mrJobConfigProperties"
+		class="dataplatform.springbean.conf.MRJobInitConfBean">
+		<constructor-arg name="jobConfigProperties">
+			<util:map>
+				<entry key="multipleOutputJobDemo" value-ref="DataplatformKeywordRepoJob" />
+				<!-- add more jobs by add new entries here -->
+			</util:map>
+		</constructor-arg>
+	</bean>
+
+	<!--=============================================================================================
+	========================================input file parser layer==================================
+	================================================================================================-->
+	<bean id="textFileParser"
+		class="dataplatform.springbean.fileparser.GeneralTextFileParser">
+		<constructor-arg name="txtInputParsers">
+			<util:map>
+			</util:map>
+		</constructor-arg>
+	</bean>
+
+    <!--=======================================================================================
+	========================================processor layer====================================
+	========================================================================================-->
+	<bean id="serializedOperatorPipeline"
+		class="dataplatform.springbean.processor.SerializedOperatorPipeline">
+		<constructor-arg name="processorPipeline">
+			<util:list>
+			<ref bean="queryNormalization" />
+			</util:list>
+		</constructor-arg>
+	</bean>
+	<bean id="queryNormalization" class="dataplatform.springbean.processor.impl.QueryNormalization">
+	</bean>
+	<!--===================================================================================
+	========================================output layer===================================
+	====================================================================================-->
+	<bean id="outputManage"
+		class="dataplatform.springbean.outputlayer.OutputManage">
+		<constructor-arg name="multiOutput">
+			<util:list>
+                <ref bean="keywordRecordOutput" />
+			</util:list>
+		</constructor-arg>
+	</bean>
+    <bean id="keywordRecordOutput"
+        class="dataplatform.springbean.outputlayer.impl.KWRecordOutput" >
+        <constructor-arg name="outputName" value="kwr"/>
+        <constructor-arg name="subDirAndName" value="KWR/part"/>
+    </bean>
+
+</beans>
